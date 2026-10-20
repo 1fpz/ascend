@@ -262,38 +262,91 @@ const DEFAULT_STATE: AppState = {
   ],
 };
 
-const STORAGE_KEY = 'project_ascend_store_v1';
+const STORAGE_KEY_BASE = 'project_ascend_store_v1';
 
 export class AppRepository {
   private state: AppState;
+  private storageKey: string = STORAGE_KEY_BASE;
+  private changeListener: ((state: AppState) => void) | null = null;
 
   constructor() {
-    this.state = this.loadInitialState();
+    this.state = structuredClone(DEFAULT_STATE);
   }
 
-  private loadInitialState(): AppState {
+  /**
+   * Deve ser chamado uma vez, após a autenticação resolver. Carrega o estado
+   * do slot privado (por usuário) no localStorage, preferindo um snapshot da
+   * nuvem quando existir (a nuvem vence se mais recente); caso contrário,
+   * semeia com o estado padrão.
+   */
+  public async initForUser(
+    userId: string,
+    fetchSnapshot?: () => Promise<{ state: AppState; updatedAt: string } | null>
+  ): Promise<void> {
+    this.storageKey = `${STORAGE_KEY_BASE}:${userId}`;
+
+    let localState: AppState | null = null;
+    let localUpdatedAt = '';
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem(this.storageKey);
         if (saved) {
           const parsed = JSON.parse(saved);
-          return { ...structuredClone(DEFAULT_STATE), ...parsed };
+          localState = { ...structuredClone(DEFAULT_STATE), ...parsed };
+          localUpdatedAt = localStorage.getItem(`${this.storageKey}:updated_at`) || '';
         }
       } catch {
-        // Fallback to default state
+        // ignore corrupt local slot
       }
     }
-    return structuredClone(DEFAULT_STATE);
+
+    let cloudState: AppState | null = null;
+    let cloudUpdatedAt = '';
+    if (fetchSnapshot) {
+      try {
+        const snap = await fetchSnapshot();
+        if (snap) {
+          cloudState = snap.state;
+          cloudUpdatedAt = snap.updatedAt;
+        }
+      } catch {
+        // offline ou erro -> mantém local
+      }
+    }
+
+    // A nuvem vence quando mais recente; senão, o local.
+    if (cloudState && (!localState || cloudUpdatedAt >= localUpdatedAt)) {
+      this.state = cloudState;
+    } else {
+      this.state = localState || structuredClone(DEFAULT_STATE);
+    }
+
+    // Persiste só no localStorage (sem notificar listener — não reenviar o que acabou de vir da nuvem)
+    this.writeLocal();
   }
 
-  private persist() {
+  public setChangeListener(fn: ((state: AppState) => void) | null) {
+    this.changeListener = fn;
+  }
+
+  public resetToDefault() {
+    this.state = structuredClone(DEFAULT_STATE);
+  }
+
+  private writeLocal() {
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+        localStorage.setItem(this.storageKey, JSON.stringify(this.state));
+        localStorage.setItem(`${this.storageKey}:updated_at`, new Date().toISOString());
       } catch {
         // Ignore storage write errors
       }
     }
+  }
+
+  private persist() {
+    this.writeLocal();
+    this.changeListener?.(this.state);
   }
 
   public getState(): AppState {

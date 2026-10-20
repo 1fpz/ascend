@@ -3,19 +3,49 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, Lock, Mail, User, ArrowRight } from 'lucide-react';
+import { Shield, Lock, Mail, User, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useAuth } from '@/lib/auth-context';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { signUp, configured } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/dashboard');
+    setError(null);
+    setInfo(null);
+
+    if (password.length < 6) {
+      setError('A senha precisa ter no mínimo 6 caracteres.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await signUp(email.trim(), password);
+      if (result === '__CHECK_EMAIL__') {
+        setInfo(
+          'Conta criada! Verifique seu e-mail para confirmar o cadastro e então faça login.'
+        );
+        return;
+      }
+      if (result) {
+        setError(result);
+        return;
+      }
+      // Sessão ativa (confirmação de e-mail desativada) → entra direto.
+      router.push('/dashboard');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -79,8 +109,32 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full font-bold mt-2">
-              Iniciar Ascensão <ArrowRight className="w-4 h-4 ml-1" />
+            {!configured && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-950/30 border border-amber-800/40 text-xs text-amber-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Supabase não configurado — cadastro funcionará só localmente (sem conta real).
+                </span>
+              </div>
+            )}
+
+            {info && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-xs text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{info}</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-rose-950/40 border border-rose-800/50 text-xs text-rose-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full font-bold mt-2" disabled={busy}>
+              {busy ? 'Criando conta...' : 'Iniciar Ascensão'}{' '}
+              <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
 
             <div className="text-center text-xs text-gray-400 pt-2">

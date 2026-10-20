@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { PwaRegister } from '@/components/pwa-register';
+import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
   title: 'Project Ascend — Sistema Operacional de Evolução Pessoal',
@@ -28,7 +29,7 @@ export default function RootLayout({
     <html lang="pt-BR" className="dark">
       <body className="bg-[#090a0f] text-gray-100 antialiased min-h-screen selection:bg-indigo-600 selection:text-white">
         <PwaRegister />
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

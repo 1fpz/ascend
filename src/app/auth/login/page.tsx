@@ -3,19 +3,33 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Shield, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useAuth } from '@/lib/auth-context';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { signIn, configured } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Deterministic entry into application
-    router.push('/dashboard');
+    setError(null);
+    setBusy(true);
+    try {
+      const errMsg = await signIn(email.trim(), password);
+      if (errMsg) {
+        setError(errMsg);
+        return;
+      }
+      router.push('/dashboard');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -64,8 +78,25 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full font-bold mt-2">
-              Entrar no Sistema <ArrowRight className="w-4 h-4 ml-1" />
+            {!configured && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-950/30 border border-amber-800/40 text-xs text-amber-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Supabase não configurado — você entrará em modo local (dados só neste navegador).
+                </span>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-rose-950/40 border border-rose-800/50 text-xs text-rose-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full font-bold mt-2" disabled={busy}>
+              {busy ? 'Entrando...' : 'Entrar no Sistema'}{' '}
+              <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
 
             <div className="text-center text-xs text-gray-400 pt-2">

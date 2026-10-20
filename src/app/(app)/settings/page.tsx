@@ -5,9 +5,11 @@ import { Settings, Globe, Download, Trash2, Save, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { getRepository } from '@/lib/store';
-import { CloudBackupCard } from '@/components/ui/cloud-backup-card';
+import { AccountCard } from '@/components/ui/account-card';
+import { useAuth } from '@/lib/auth-context';
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [timezone, setTimezone] = useState('America/Sao_Paulo');
   const [saved, setSaved] = useState(false);
 
@@ -26,6 +28,11 @@ export default function SettingsPage() {
   const handleReset = () => {
     if (confirm('Tem certeza de que deseja restaurar as configurações iniciais?')) {
       if (typeof window !== 'undefined') {
+        // Limpa o slot do usuário atual (chaves são por usuário).
+        const slot = user?.id ? `project_ascend_store_v1:${user.id}` : 'project_ascend_store_v1:local';
+        localStorage.removeItem(slot);
+        localStorage.removeItem(`${slot}:updated_at`);
+        // também remove a chave legada compartilhada
         localStorage.removeItem('project_ascend_store_v1');
         window.location.reload();
       }
@@ -110,8 +117,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Cloud Backup / Restore (Supabase) */}
-      <CloudBackupCard />
+      {/* Account & Cloud Sync (Supabase, por usuário) */}
+      <AccountCard />
 
       {/* Danger Zone: Reset Account */}
       <Card className="border-rose-900/30 bg-[#140c0f]">
