@@ -5,6 +5,7 @@ import { Settings, Globe, Download, Trash2, Save, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { getRepository } from '@/lib/store';
+import { CloudBackupCard } from '@/components/ui/cloud-backup-card';
 
 export default function SettingsPage() {
   const [timezone, setTimezone] = useState('America/Sao_Paulo');
@@ -108,6 +109,9 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Cloud Backup / Restore (Supabase) */}
+      <CloudBackupCard />
 
       {/* Danger Zone: Reset Account */}
       <Card className="border-rose-900/30 bg-[#140c0f]">
