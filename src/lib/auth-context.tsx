@@ -65,17 +65,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Carrega o store para um usuário e liga o listener de persistência. */
   const bootstrapUser = useCallback(
     async (u: User) => {
+      // Sinaliza o loading ANTES de carregar: assim o guard de rotas mostra o
+      // spinner em vez de redirecionar pro login enquanto o store carrega.
+      setLoading(true);
       currentUserId.current = u.id;
-      const repo = getRepository();
+      try {
+        const repo = getRepository();
 
-      await repo.initForUser(u.id, () => fetchUserSnapshot(u.id));
+        await repo.initForUser(u.id, () => fetchUserSnapshot(u.id));
 
-      repo.setChangeListener((state) => {
-        if (currentUserId.current) scheduleSave(currentUserId.current, state);
-      });
+        repo.setChangeListener((state) => {
+          if (currentUserId.current) scheduleSave(currentUserId.current, state);
+        });
 
-      setUser(u);
-      setLoading(false);
+        setUser(u);
+      } catch (err) {
+        console.error('[auth] falha ao carregar o store do usuário:', err);
+        // Mesmo em falha, marca como logado para não prender na tela de loading.
+        setUser(u);
+      } finally {
+        setLoading(false);
+      }
     },
     [scheduleSave]
   );

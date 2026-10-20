@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Shield, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
@@ -10,26 +10,38 @@ import { useAuth } from '@/lib/auth-context';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, configured } = useAuth();
+  const { signIn, configured, user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Espera o bootstrap do store (user setado) antes de navegar, senão o
+  // RequireAuth veria user=null e reenviaria pro login.
+  const [pendingNav, setPendingNav] = useState(false);
+
+  useEffect(() => {
+    if (pendingNav && user && !loading) {
+      router.push('/dashboard');
+    }
+  }, [pendingNav, user, loading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    try {
-      const errMsg = await signIn(email.trim(), password);
-      if (errMsg) {
-        setError(errMsg);
-        return;
-      }
-      router.push('/dashboard');
-    } finally {
+    const errMsg = await signIn(email.trim(), password);
+    if (errMsg) {
+      setError(errMsg);
       setBusy(false);
+      return;
     }
+    if (!configured) {
+      // Modo local: sem sessão, navega direto.
+      router.push('/dashboard');
+      return;
+    }
+    // Supabase: aguarda o effect acima quando user+loading resolverem.
+    setPendingNav(true);
   };
 
   return (

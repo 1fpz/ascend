@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Shield, Lock, Mail, User, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -10,13 +10,22 @@ import { useAuth } from '@/lib/auth-context';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { signUp, configured } = useAuth();
+  const { signUp, configured, user, loading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Espera o bootstrap do store (user setado) antes de navegar — evita que o
+  // RequireAuth reenvie pro login por ver user=null logo após o cadastro.
+  const [pendingNav, setPendingNav] = useState(false);
+
+  useEffect(() => {
+    if (pendingNav && user && !loading) {
+      router.push('/dashboard');
+    }
+  }, [pendingNav, user, loading, router]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,23 +38,28 @@ export default function RegisterPage() {
     }
 
     setBusy(true);
-    try {
-      const result = await signUp(email.trim(), password);
-      if (result === '__CHECK_EMAIL__') {
-        setInfo(
-          'Conta criada! Verifique seu e-mail para confirmar o cadastro e então faça login.'
-        );
-        return;
-      }
-      if (result) {
-        setError(result);
-        return;
-      }
-      // Sessão ativa (confirmação de e-mail desativada) → entra direto.
-      router.push('/dashboard');
-    } finally {
+    const result = await signUp(email.trim(), password);
+
+    if (result === '__CHECK_EMAIL__') {
+      // Confirmação de e-mail ligada: fica na tela avisando.
+      setInfo(
+        'Conta criada! Verifique seu e-mail para confirmar o cadastro e então faça login.'
+      );
       setBusy(false);
+      return;
     }
+    if (result) {
+      setError(result);
+      setBusy(false);
+      return;
+    }
+    if (!configured) {
+      // Modo local: navega direto.
+      router.push('/dashboard');
+      return;
+    }
+    // Sessão ativa (confirmação desativada): aguarda o effect navegar.
+    setPendingNav(true);
   };
 
   return (
