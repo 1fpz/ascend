@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Zap, Plus, Flame, Search, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -8,19 +8,33 @@ import { getRepository } from '@/lib/store';
 import { getLevelProgressFromTotalXp } from '@/lib/domain/gamification';
 import { soundFx } from '@/lib/audio';
 
+interface HeaderStats {
+  maxStreak: number;
+  level: number;
+  progressPercent: number;
+  todayStr: string;
+}
+
 export function Header() {
-  const repo = getRepository();
-  const character = repo.getState().character;
-  const habits = repo.getHabits();
-  const maxStreak = Math.max(0, ...habits.map((h) => h.currentStreak));
-  const { level, progressPercent } = getLevelProgressFromTotalXp(character.totalXp);
+  // Load store/date-derived values only after mount to avoid SSR/client
+  // hydration mismatch (server sees DEFAULT_STATE, client sees localStorage).
+  const [stats, setStats] = useState<HeaderStats | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
-  const todayStr = new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  }).format(new Date());
+  useEffect(() => {
+    const repo = getRepository();
+    const character = repo.getState().character;
+    const habits = repo.getHabits();
+    const maxStreak = Math.max(0, ...habits.map((h) => h.currentStreak));
+    const { level, progressPercent } = getLevelProgressFromTotalXp(character.totalXp);
+    const todayStr = new Intl.DateTimeFormat('pt-BR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+    }).format(new Date());
+
+    setStats({ maxStreak, level, progressPercent, todayStr });
+  }, []);
 
   const toggleSound = () => {
     const active = soundFx.toggleBrownNoise();
@@ -36,7 +50,7 @@ export function Header() {
       {/* Date & Quick Search Command Bar */}
       <div className="flex items-center gap-3">
         <span className="text-xs uppercase tracking-wider text-gray-400 font-mono hidden lg:inline">
-          {todayStr}
+          {stats?.todayStr ?? ''}
         </span>
         <button
           onClick={triggerSearch}
@@ -69,7 +83,7 @@ export function Header() {
         {/* Streak Indicator */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141210] border border-amber-900/40 text-xs font-semibold text-amber-400 shadow-sm">
           <Flame className="w-3.5 h-3.5 fill-amber-400" />
-          <span>{maxStreak}d</span>
+          <span>{stats ? `${stats.maxStreak}d` : '—'}</span>
         </div>
 
         {/* Level & XP Mini Badge */}
@@ -78,8 +92,10 @@ export function Header() {
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/70 border border-indigo-600/40 text-xs font-bold text-indigo-300 transition-all shadow-sm shadow-indigo-950 hover:shadow-indigo-600/20"
         >
           <Zap className="w-3.5 h-3.5 fill-indigo-400 text-indigo-400" />
-          <span>NV {level}</span>
-          <span className="text-[10px] text-indigo-400 font-mono">({progressPercent}%)</span>
+          <span>NV {stats?.level ?? '—'}</span>
+          <span className="text-[10px] text-indigo-400 font-mono">
+            {stats ? `(${stats.progressPercent}%)` : ''}
+          </span>
         </Link>
 
         {/* Quick New Mission / Task Button */}
