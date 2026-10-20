@@ -1,36 +1,100 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Project Ascend
 
-## Getting Started
+> **Sistema Operacional de Evolução Pessoal Gamificada | MVP Robusto sem Inteligência Artificial**
 
-First, run the development server:
+Project Ascend é um SaaS moderno para planejamento de vida, missões hierárquicas, planner diário inteligente e gamificação inspirada em RPGs, desenvolvido sob rigor de engenharia de software e **100% determinístico** (zero modelos de linguagem ou dependências de IA).
 
+---
+
+## 🛠️ Stack Tecnológica
+
+- **Framework**: Next.js 15 (App Router com Server & Client Components)
+- **Linguagem**: TypeScript em modo estrito (`strict: true`)
+- **Estilização**: Tailwind CSS v4 com paleta Dark Obsidian profissional
+- **Ícones**: Lucide React
+- **Banco de Dados**: PostgreSQL no Supabase com Row Level Security (RLS) completo
+- **Visualização de Dados**: Recharts
+- **Suíte de Testes**: Vitest (21 testes unitários determinísticos passando)
+- **PWA**: Web App Manifest (`/manifest.json`) com suporte a instalação mobile e desktop
+
+---
+
+## 🚀 Como Executar Localmente
+
+### 1. Clonar ou Acessar o Diretório
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd "C:\Users\USER\.gemini\antigravity\scratch\project-ascend"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Instalar Dependências
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Configurar Variáveis de Ambiente
+Copie o arquivo `.env.example` para `.env.local`:
+```bash
+cp .env.example .env.local
+```
+*(Nota: O aplicativo funciona 100% offline out-of-the-box mesmo sem chaves do Supabase preenchidas, utilizando sua camada de persistência local e dados semente de demonstração).*
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Executar os Testes Automatizados
+```bash
+npm test
+```
 
-## Learn More
+### 5. Iniciar o Servidor de Desenvolvimento
+```bash
+npm run dev
+```
+Acesse `http://localhost:3000` no seu navegador.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📐 Estrutura do Projeto
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+project-ascend/
+├── docs/
+│   ├── architecture.md             # Especificação arquitetural dos motores determinísticos
+│   └── database-schema.md          # Documentação do schema PostgreSQL e RLS
+├── supabase/
+│   └── migrations/
+│       └── 20261020000001_project_ascend_schema.sql # Schema SQL com RLS e índices
+├── src/
+│   ├── app/                        # Next.js App Router (17 rotas estáticas e dinâmicas)
+│   │   ├── (app)/                  # Rotas internas autenticadas com Sidebar e Header
+│   │   │   ├── dashboard/          # Command Center
+│   │   │   ├── missions/           # Gestão de Missões e Detalhes
+│   │   │   │   └── tree/           # Mission Tree visual navegável
+│   │   │   ├── planner/            # Planner diário com controle de carga de tempo
+│   │   │   ├── habits/             # Hábitos e rituais com cálculo de streaks
+│   │   │   ├── library/            # Biblioteca de trilhas com clonagem independente
+│   │   │   ├── smart-task/[id]/    # Smart Task Engine (Bíblia, Treino, Pomodoro, etc.)
+│   │   │   ├── character/          # Perfil RPG e Livro-Razão de Auditoria de XP
+│   │   │   ├── achievements/       # Conquistas desbloqueadas determinísticamente
+│   │   │   ├── analytics/          # Life Analytics com Recharts
+│   │   │   └── settings/           # Configurações, Timezone e Exportação LGPD (.json)
+│   │   ├── auth/                   # Telas de Login e Cadastro
+│   │   └── page.tsx                # Landing Page de apresentação
+│   ├── components/
+│   │   ├── layout/                 # Sidebar, Header, MobileNav
+│   │   └── ui/                     # Button, Card, Badge, Progress, LevelProgressBar
+│   └── lib/
+│       ├── bible/                  # Módulo bíblico canônico offline (Almeida)
+│       ├── catalog/                # Trilhas prontas da biblioteca
+│       ├── domain/                 # Motores puros de progresso, gamificação e planner
+│       │   └── __tests__/          # Testes unitários com Vitest
+│       ├── store/                  # Repositório unificado de estado e persistência
+│       └── utils.ts
+└── PROJECT_STATUS.md               # Relatório contínuo de status e testes
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔒 Princípios de Segurança e Integridade
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Zero IA**: Todos os cálculos, recomendações de ordem e concessões de pontos são 100% explicáveis por fórmulas matemáticas e regras de negócio.
+2. **Idempotência de XP**: O livro-razão (`xp_ledger`) garante que uma mesma ação nunca conceda pontos repetidos. Na reabertura de uma tarefa, o XP é automaticamente estornado.
+3. **Prevenção de Ciclos**: O grafo de dependências rejeita dependências circulares através de busca em profundidade (DFS).
+4. **Row Level Security**: Isolamento de 100% das tabelas privadas no PostgreSQL.
