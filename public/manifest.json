@@ -1,16 +1,19 @@
 {
-  "name": "Project Ascend",
+  "name": "Project Ascend — Evolution OS",
   "short_name": "Ascend",
   "description": "Sistema Operacional de Evolução Pessoal Gamificada",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#090a0f",
-  "theme_color": "#090a0f",
+  "orientation": "portrait-primary",
+  "background_color": "#06070a",
+  "theme_color": "#06070a",
+  "categories": ["productivity", "lifestyle", "education"],
   "icons": [
     {
       "src": "/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "purpose": "any maskable"
     }
   ]
 }
