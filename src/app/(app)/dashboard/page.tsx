@@ -10,17 +10,20 @@ import {
   Clock,
   ArrowRight,
   Flame,
-  Zap,
   Play,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { LevelProgressBar } from '@/components/ui/level-progress';
+import { ConsistencyHeatmap } from '@/components/ui/consistency-heatmap';
+import { LevelUpModal } from '@/components/ui/level-up-modal';
 import { getRepository } from '@/lib/store';
 import { triggerRewardConfetti } from '@/lib/confetti';
+import { soundFx } from '@/lib/audio';
 import { TaskItem, Mission, HabitItem } from '@/lib/types';
 
 export default function DashboardPage() {
@@ -30,6 +33,10 @@ export default function DashboardPage() {
   const [habits, setHabits] = useState<HabitItem[]>([]);
   const [totalXp, setTotalXp] = useState(50);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [levelUpState, setLevelUpState] = useState<{ show: boolean; level: number }>({
+    show: false,
+    level: 1,
+  });
 
   const reloadData = () => {
     const repo = getRepository();
@@ -66,14 +73,34 @@ export default function DashboardPage() {
   const activeMissions = missions.filter((m) => m.status === 'in_progress');
   const featuredMission = activeMissions[0] || missions[0];
 
+  // Consistency dates map
+  const repo = getRepository();
+  const habitLogs = repo.getState().habitLogs;
+  const activityMap: Record<string, number> = {};
+  habitLogs.forEach((l) => {
+    activityMap[l.logDate] = (activityMap[l.logDate] || 0) + 1;
+  });
+  tasks.forEach((t) => {
+    if (t.completedAt) {
+      const d = t.completedAt.split('T')[0];
+      activityMap[d] = (activityMap[d] || 0) + 1;
+    }
+  });
+
   // Complete a task
   const handleCompleteTask = (taskId: string) => {
     try {
-      const repo = getRepository();
       const res = repo.completeTask(taskId);
+      soundFx.playRewardSound();
       triggerRewardConfetti();
-      setFeedbackMsg(`+${res.xpAwarded} XP concedidos! Tarefa concluída.`);
-      setTimeout(() => setFeedbackMsg(null), 3000);
+
+      if (res.leveledUp) {
+        setLevelUpState({ show: true, level: repo.getState().character.level });
+      } else {
+        setFeedbackMsg(`+${res.xpAwarded} XP concedidos com sucesso!`);
+        setTimeout(() => setFeedbackMsg(null), 3000);
+      }
+
       reloadData();
     } catch (err: unknown) {
       console.error(err);
@@ -83,9 +110,8 @@ export default function DashboardPage() {
   // Reopen a task
   const handleReopenTask = (taskId: string) => {
     try {
-      const repo = getRepository();
       repo.reopenTask(taskId);
-      setFeedbackMsg('Tarefa reaberta e XP recalculado.');
+      setFeedbackMsg('Tarefa reaberta e XP ajustado.');
       setTimeout(() => setFeedbackMsg(null), 3000);
       reloadData();
     } catch (err: unknown) {
@@ -96,9 +122,11 @@ export default function DashboardPage() {
   // Toggle habit
   const handleToggleHabit = (habitId: string) => {
     try {
-      const repo = getRepository();
       const { completed } = repo.toggleHabitLog(habitId, todayStr);
-      if (completed) triggerRewardConfetti();
+      if (completed) {
+        soundFx.playRewardSound();
+        triggerRewardConfetti();
+      }
       reloadData();
     } catch (err: unknown) {
       console.error(err);
@@ -107,11 +135,19 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Level Up Celebration Modal */}
+      {levelUpState.show && (
+        <LevelUpModal
+          newLevel={levelUpState.level}
+          onClose={() => setLevelUpState({ show: false, level: 1 })}
+        />
+      )}
+
       {/* Feedback Banner */}
       {feedbackMsg && (
-        <div className="bg-emerald-950/80 border border-emerald-700/60 text-emerald-200 px-4 py-3 rounded-lg flex items-center justify-between text-sm shadow-lg">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-emerald-400" />
+        <div className="bg-emerald-950 border border-emerald-500/60 text-emerald-200 px-4 py-3 rounded-xl flex items-center justify-between text-sm shadow-xl glow-emerald animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 font-semibold">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
             <span>{feedbackMsg}</span>
           </div>
           <button
@@ -124,16 +160,22 @@ export default function DashboardPage() {
       )}
 
       {/* Hero / Greeting Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1c2235] pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 border-b border-[#1b233a] pb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold">
+              OPERACIONAL ATIVO
+            </span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mt-1">
             Command Center
           </h1>
           <p className="text-xs md:text-sm text-gray-400 mt-1">
-            Planejamento e execução de alta performance. Sem distrações.
+            Painel unificado de planejamento, hábitos e evolução pessoal gamificada.
           </p>
         </div>
-        <div className="w-full md:w-80">
+        <div className="w-full md:w-88 p-4 rounded-2xl bg-[#0b0e18] border border-[#1e263d] shadow-lg">
           <LevelProgressBar totalXp={totalXp} />
         </div>
       </div>
@@ -141,14 +183,14 @@ export default function DashboardPage() {
       {/* Featured Mission & Daily Progress Banner */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Featured Mission Card */}
-        <Card className="lg:col-span-2 border-indigo-900/30 bg-gradient-to-br from-[#121626] to-[#0d101c]">
+        <Card className="lg:col-span-2 border-indigo-500/30 bg-gradient-to-br from-[#101526] via-[#0d111d] to-[#070910] shadow-xl">
           <CardHeader className="flex flex-row items-start justify-between pb-2">
-            <div className="space-y-1">
-              <Badge variant="purple">Missão em Destaque</Badge>
-              <CardTitle className="text-xl font-bold mt-2">
+            <div className="space-y-1.5">
+              <Badge variant="purple" className="shadow-sm">Missão Primária em Foco</Badge>
+              <CardTitle className="text-xl md:text-2xl font-black text-white mt-2">
                 {featuredMission ? featuredMission.title : 'Nenhuma missão ativa'}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs text-gray-300">
                 {featuredMission
                   ? featuredMission.description
                   : 'Crie uma missão primária ou clone uma trilha da biblioteca para começar.'}
@@ -162,29 +204,34 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4 pt-2">
             {featuredMission && (
-              <div>
-                <div className="flex justify-between text-xs font-semibold mb-1 text-gray-400">
-                  <span>Progresso Geral da Missão</span>
-                  <span className="text-indigo-400">{featuredMission.calculatedProgress}%</span>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold text-gray-300">
+                  <span>Progresso Ponderado da Missão</span>
+                  <span className="text-indigo-400 font-mono font-bold text-sm">
+                    {featuredMission.calculatedProgress}%
+                  </span>
                 </div>
-                <Progress value={featuredMission.calculatedProgress} color="bg-indigo-500" />
+                <Progress
+                  value={featuredMission.calculatedProgress}
+                  color="bg-gradient-to-r from-indigo-500 to-purple-500"
+                />
               </div>
             )}
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-gray-400">
+            <div className="flex items-center justify-between pt-3 border-t border-[#182136]">
+              <span className="text-xs text-gray-400 font-mono">
                 {featuredMission?.dueDate
-                  ? `Prazo: ${featuredMission.dueDate}`
+                  ? `Vencimento: ${featuredMission.dueDate}`
                   : 'Sem prazo fixado'}
               </span>
               {featuredMission ? (
                 <Link href={`/missions/${featuredMission.id}`}>
-                  <Button size="sm" variant="secondary">
-                    Abrir Detalhes <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  <Button size="sm" variant="secondary" className="border-indigo-500/40 hover:border-indigo-400">
+                    Gerenciar Etapas <ArrowRight className="w-3.5 h-3.5 ml-1" />
                   </Button>
                 </Link>
               ) : (
                 <Link href="/library">
-                  <Button size="sm">Explorar Trilhas</Button>
+                  <Button size="sm">Explorar Biblioteca de Trilhas</Button>
                 </Link>
               )}
             </div>
@@ -192,9 +239,9 @@ export default function DashboardPage() {
         </Card>
 
         {/* Daily Execution Snapshot */}
-        <Card>
+        <Card className="border-[#1e273e] bg-[#0b0e18] shadow-xl flex flex-col justify-between">
           <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between">
+            <CardTitle className="text-base flex items-center justify-between text-white font-bold">
               <span>Execução de Hoje</span>
               <Calendar className="w-4 h-4 text-indigo-400" />
             </CardTitle>
@@ -202,17 +249,20 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-black text-white">{dailyProgress}%</div>
+              <div className="text-4xl font-black text-white">{dailyProgress}%</div>
               <div className="text-xs text-gray-400 font-mono">
                 <span className="text-emerald-400 font-bold">{completedTasks.length}</span> /{' '}
                 {dailyTasks.length} concluídas
               </div>
             </div>
-            <Progress value={dailyProgress} color="bg-emerald-500" />
+            <Progress
+              value={dailyProgress}
+              color={dailyProgress === 100 ? 'bg-emerald-400' : 'bg-indigo-500'}
+            />
 
             <div className="pt-2">
               <Link href="/planner">
-                <Button variant="outline" size="sm" className="w-full">
+                <Button variant="outline" size="sm" className="w-full border-[#242e47] hover:bg-[#141b2e]">
                   Abrir Planner Diário
                 </Button>
               </Link>
@@ -221,30 +271,35 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* 90-Day Consistency Heatmap Grid */}
+      <Card className="border-[#1b233a] bg-[#0a0d16] p-5 shadow-lg">
+        <ConsistencyHeatmap completedDates={activityMap} />
+      </Card>
+
       {/* Main Grid: Actionable Tasks & Habits */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Priority Actionable Tasks */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Target className="w-4 h-4 text-indigo-400" />
+              <Target className="w-5 h-5 text-indigo-400" />
               Ações Prioritárias do Dia
             </h2>
             <Link href="/planner">
               <span className="text-xs text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer">
-                Ver todas ({dailyTasks.length})
+                Ver todas ({dailyTasks.length}) &rarr;
               </span>
             </Link>
           </div>
 
           <div className="space-y-3">
             {pendingTasks.length === 0 ? (
-              <Card className="border-dashed border-[#242b40]">
+              <Card className="border-dashed border-[#242c44] bg-[#090c15]">
                 <CardContent className="p-8 text-center space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                  <p className="text-sm font-semibold text-white">Todas as tarefas foram concluídas!</p>
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                  <p className="text-base font-bold text-white">Todas as tarefas de hoje foram concluídas!</p>
                   <p className="text-xs text-gray-400">
-                    Excelente trabalho de foco. Adicione novas ações no planner ou descanse.
+                    Excelente execução. Planeje novas tarefas ou desfrute do tempo ganho.
                   </p>
                 </CardContent>
               </Card>
@@ -252,7 +307,7 @@ export default function DashboardPage() {
               pendingTasks.slice(0, 5).map((task) => (
                 <Card
                   key={task.id}
-                  className="hover:border-[#2d3855] transition-all bg-[#0f1320]"
+                  className="hover:border-indigo-500/50 transition-all bg-[#0d101c] border-[#1c2438] hover:shadow-lg hover:shadow-indigo-950/40"
                 >
                   <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1 flex-1">
@@ -268,15 +323,15 @@ export default function DashboardPage() {
                         >
                           {task.priority}
                         </Badge>
-                        <span className="text-xs text-gray-400 uppercase font-mono">
+                        <span className="text-[11px] text-gray-400 uppercase font-mono">
                           {task.taskType.replace('_', ' ')}
                         </span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1 font-mono">
-                          <Clock className="w-3 h-3" />
+                        <span className="text-[11px] text-gray-400 flex items-center gap-1 font-mono">
+                          <Clock className="w-3 h-3 text-gray-500" />
                           {task.estimatedMinutes}m
                         </span>
                       </div>
-                      <h4 className="text-sm font-semibold text-gray-100">{task.title}</h4>
+                      <h4 className="text-sm font-bold text-gray-100">{task.title}</h4>
                       {task.description && (
                         <p className="text-xs text-gray-400 line-clamp-1">{task.description}</p>
                       )}
@@ -284,7 +339,7 @@ export default function DashboardPage() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       <Link href={`/smart-task/${task.id}`}>
-                        <Button size="sm" variant="secondary">
+                        <Button size="sm" variant="secondary" className="border-[#232d47]">
                           <Play className="w-3 h-3 text-indigo-400" /> Executar
                         </Button>
                       </Link>
@@ -292,6 +347,7 @@ export default function DashboardPage() {
                         size="sm"
                         variant="primary"
                         onClick={() => handleCompleteTask(task.id)}
+                        className="shadow-sm shadow-indigo-600/30"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Concluir
@@ -312,7 +368,7 @@ export default function DashboardPage() {
               {completedTasks.slice(0, 3).map((task) => (
                 <div
                   key={task.id}
-                  className="p-3 rounded-lg border border-[#1b2234] bg-[#0c0f18]/60 flex items-center justify-between text-xs text-gray-400"
+                  className="p-3 rounded-xl border border-[#161d2e] bg-[#090c15] flex items-center justify-between text-xs text-gray-400"
                 >
                   <div className="flex items-center gap-2 line-through text-gray-500">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -322,7 +378,7 @@ export default function DashboardPage() {
                     size="sm"
                     variant="ghost"
                     onClick={() => handleReopenTask(task.id)}
-                    className="text-[11px] h-7 px-2"
+                    className="text-[11px] h-7 px-2.5 text-gray-400 hover:text-white"
                   >
                     <RotateCcw className="w-3 h-3 mr-1" /> Reabrir
                   </Button>
@@ -336,19 +392,18 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Repeat className="w-4 h-4 text-amber-400" />
+              <Repeat className="w-5 h-5 text-amber-400" />
               Hábitos do Dia
             </h2>
             <Link href="/habits">
               <span className="text-xs text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer">
-                Gerenciar
+                Gerenciar &rarr;
               </span>
             </Link>
           </div>
 
           <div className="space-y-3">
             {habits.map((habit) => {
-              const repo = getRepository();
               const logs = repo.getHabitLogs(todayStr);
               const isDone = logs.some((l) => l.habitId === habit.id && l.completed);
 
@@ -357,18 +412,18 @@ export default function DashboardPage() {
                   key={habit.id}
                   className={`border transition-all ${
                     isDone
-                      ? 'border-emerald-800/40 bg-[#0d161a]'
-                      : 'border-[#22293e] bg-[#0f1320]'
+                      ? 'border-emerald-600/50 bg-[#091512] shadow-sm shadow-emerald-950'
+                      : 'border-[#1e273e] bg-[#0d101c] hover:border-[#2b3756]'
                   }`}
                 >
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-100">{habit.title}</span>
+                        <span className="text-sm font-bold text-white">{habit.title}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
-                        <span className="flex items-center gap-1 font-mono text-amber-400">
-                          <Flame className="w-3 h-3 fill-amber-400" />
+                      <div className="flex items-center gap-2 text-xs text-gray-400 font-mono">
+                        <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                          <Flame className="w-3.5 h-3.5 fill-amber-400" />
                           {habit.currentStreak} dias seguidos
                         </span>
                       </div>
@@ -377,10 +432,11 @@ export default function DashboardPage() {
                       size="sm"
                       variant={isDone ? 'secondary' : 'outline'}
                       onClick={() => handleToggleHabit(habit.id)}
+                      className={isDone ? 'border-emerald-600/40 text-emerald-300' : 'border-[#242e47]'}
                     >
                       {isDone ? (
                         <>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mr-1" /> Concluído
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mr-1" /> Feito
                         </>
                       ) : (
                         'Marcar'
